@@ -24,24 +24,30 @@ if ($_POST) {
         $stock = $fila['stock'];
 
 
-    if ($tipo == 'prestamo') {
-        $link = "prestamos.php?id_libro=" . $id;
-    } else {
-        $link = "libros.php?id=" . $id;
-    }
+        if ($tipo == 'prestamo') {
+            $link = "prestamos.php";
+        } else {
+            $link = "libros.php";
+        }
 
 ?>
 
 
-
-
-        <a href="<?php echo $link ?>" style="text-decoration:none; ">
-            <ul class="list-group list-group-flush">
-                <li class="list-group-item">
-                    <div style="margin-right:6px;"><b><?php echo "</b>Titulo: <b>" . $titulo . "</b>,   Autor: <b>" . $autor . "</b>,   Editorial: <b>" . $editorial; ?></b></div>
-                </li>
-            </ul>
-        </a>
+        <form method="POST" action="<?php echo $link; ?>">
+            <input type="hidden" name="id_libro" value="<?php echo $id; ?>">
+            <input type="hidden" name="titulo" value="<?php echo $titulo; ?>">
+            <input type="hidden" name="autor" value="<?php echo $autor; ?>">
+            <input type="hidden" name="editorial" value="<?php echo $editorial; ?>">
+            <button type="submit" style="border: none; background: none; padding: 0;">
+                <ul class="list-group list-group-flush" style="text-decoration: none;">
+                    <li class="list-group-item">
+                        <div style="margin-right: 6px;">
+                            <b><?php echo "Titulo: <b>" . $titulo . "</b>, Autor: <b>" . $autor . "</b>, Editorial: <b>" . $editorial; ?></b>
+                        </div>
+                    </li>
+                </ul>
+            </button>
+        </form>
 <?php
     } //Cerramos el while
 } // Cerramos el if

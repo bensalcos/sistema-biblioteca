@@ -24,6 +24,7 @@ if (empty($_SESSION)) {
             $_SESSION['id_usuario'] = $fila['id_usuario'];
             $_SESSION['usuario'] = $fila['nombre'] . " " . $fila['apellido'];
             $_SESSION['correo'] = $fila['correo'];
+            $_SESSION['rut'] = $fila['rut'];
             $_SESSION['tipo_usuario'] = $fila['tipo_usuario'];
             $_SESSION['foto'] = $fila['foto'];
         } else {

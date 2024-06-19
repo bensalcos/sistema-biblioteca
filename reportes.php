@@ -70,7 +70,7 @@ if ($_SESSION['tipo_usuario'] == 'Administrativo') {
 
 
 <div class="d-grid d-md-flex mt-2">
-    <input type="submit" class="btn btn-secondary" id="limpiar" name="activos" value="Prestamos activos">
+    <input type="submit" class="btn btn-secondary" id="limpiar" name="limpiar" value="Prestamos activos">
     <input type="submit" class="btn btn-success" id="crear" name="multas" value="Multas">
 </div>
 

@@ -20,13 +20,14 @@ include("templates/header.php");
 
 
 
-$libros = '';
 
-$query_libros = "SELECT id_libro,titulo,autor,editorial,fecha_publicacion,stock FROM libros;";
+
+
 $query_ejemplares = "SELECT id_ejemplar, id_libro, codigo_ejemplar, estado, condicion FROM ejemplares GROUP BY codigo_ejemplar;";
 
-
 if (isset($_POST['listar'])) {
+    $query_libros = "SELECT id_libro,titulo,autor,editorial,fecha_publicacion,stock FROM libros;";
+    $libros = '';
     if ($resultado = mysqli_query($connect, $query_libros)) {
         while ($fila = mysqli_fetch_array($resultado)) {
 
@@ -36,7 +37,10 @@ if (isset($_POST['listar'])) {
             $libros .= "<td>" . $fila['editorial'] . "</td>";
             $libros .= "<td>" . $fila['fecha_publicacion'] . "</td>";
             $libros .= "<td>" . $fila['stock'] . "</td>";
-            $libros .= "<td><a href='prestamos.php?id_libro=" . $fila['id_libro'] . "'><i class='bi bi-gear text-danger'></i></a></td>";
+            $libros .= "<td><form method='POST' action='prestamos.php'>
+                    <input type='hidden' name='id_libro' value='" . $fila['id_libro'] . "'>
+                    <button type='submit' class='btn btn-secondary'>ver</button>
+                </form></td>";
             $libros .= "</tr>";
         }
     } else {
@@ -45,7 +49,8 @@ if (isset($_POST['listar'])) {
     $libros = mb_convert_encoding($libros, "UTF-8", "ISO-8859-1");
 }
 
-if (isset($_GET['id_libro'])) {
+
+if (isset($_POST['id_libro']) && !isset($_POST['id_ejemplar'])) {
     $query_libro = "SELECT id_libro as 'id',
                 titulo as 'Titulo', 
                  autor as 'Autor', 
@@ -53,7 +58,7 @@ if (isset($_GET['id_libro'])) {
                  fecha_publicacion as 'Año de Publicación',
                  stock as 'Stock'
           FROM libros 
-          WHERE libros.id_libro=" . $_GET['id_libro'] . ";";
+          WHERE libros.id_libro=" . $_POST['id_libro'] . ";";
     $resultado = mysqli_query($connect, $query_libro);
     $fila = mysqli_fetch_array($resultado);
     $id_libro = $fila['id'];
@@ -71,62 +76,133 @@ if (isset($_GET['id_libro'])) {
     $stock = "";
 }
 
+if (isset($_POST['id_ejemplar'])) {
 
 
-if (isset($_POST['ejemplares']) && isset($_GET['id_libro'])) {
-    $query_ejemplares = "SELECT id_ejemplar, id_libro, codigo_ejemplar, estado, condicion FROM ejemplares WHERE id_libro = $id_libro;";
+    $id_ejemplar = $_POST['id_ejemplar'];
+    $query_ejemplar = "SELECT id_ejemplar, id_libro,(SELECT titulo FROM libros WHERE libros.id_libro = ejemplares.id_libro) as titulo, codigo_ejemplar, estado, condicion FROM ejemplares WHERE id_ejemplar = $id_ejemplar;";
+    $resultado = mysqli_query($connect, $query_ejemplar);
+    $fila = mysqli_fetch_array($resultado);
+    $id_libro_ejemplar = $fila['id_libro'];
+    $titulo_ejemplar = mb_convert_encoding($fila['titulo'], "UTF-8", "ISO-8859-1");
+    $codigo = mb_convert_encoding($fila['codigo_ejemplar'], "UTF-8", "ISO-8859-1");
+    $estado = mb_convert_encoding($fila['estado'], "UTF-8", "ISO-8859-1");
+    $condicion = mb_convert_encoding($fila['condicion'], "UTF-8", "ISO-8859-1");
+} else {
+    $id_ejemplar = '';
+    $id_libro_ejemplar = '';
+    $titulo_ejemplar = '';
+    $codigo = '';
+    $estado = '';
+    $condicion = '';
+}
+
+
+
+
+if (isset($_POST['ejemplares'])) {
+    $id_libro = $_POST['id_libro'];
+    $query_ejemplares = "SELECT id_ejemplar, (SELECT titulo FROM libros WHERE libros.id_libro = ejemplares.id_libro) as titulo, codigo_ejemplar, estado, condicion FROM ejemplares WHERE id_libro = $id_libro;";
     $resultado = mysqli_query($connect, $query_ejemplares);
     $ejemplares = '';
     while ($fila = mysqli_fetch_array($resultado)) {
         $ejemplares .= "<tr class='item'>";
+        $ejemplares .= "<td>" . $fila['titulo'] . "</td>";
         $ejemplares .= "<td>" . $fila['codigo_ejemplar'] . "</td>";
         $ejemplares .= "<td>" . $fila['estado'] . "</td>";
         $ejemplares .= "<td>" . $fila['condicion'] . "</td>";
-        $ejemplares .= "<td><a class='btn btn-primary'  href='prestamos.php?ejemplar=" . $fila['codigo_ejemplar'] . "'>Solicitar Prestamo </button></a></td>";
+        $ejemplares .= "<td><form method='POST' action='prestamos.php'>
+                    <input type='hidden' name='id_ejemplar' value='" . $fila['id_ejemplar'] . "'>
+                    <button type='submit' class='btn btn-secondary'>Detalles</button>
+                </form></td>";
         $ejemplares .= "</tr>";
     }
     $ejemplares = mb_convert_encoding($ejemplares, "UTF-8", "ISO-8859-1");
 }
 
-if (isset($_POST['solicitar_prestamo']) && isset($_GET['ejemplar'])) {
 
-    $codigo_ejemplar = $_GET['ejemplar'];
-    $id_usuario = $_SESSION['id_usuario'];
-    $tipo = strtolower($_SESSION['tipo_usuario']);
-    var_dump($_POST);
-    echo $tipo;
-    if (strtolower($_SESSION['tipo_usuario']) == ('docente')) {
+function generarCodigo($rut, $codigo_ejemplar, $fecha_prestamo)
+{
+    $s = "PM-";
+    $s .=  $rut;
+    $s .= "-" . $codigo_ejemplar;
+    $s .= "-" . $fecha_prestamo;
 
-        $codigo_ejemplar = $_GET['ejemplar'];
-        $id_usuario = $_SESSION['id_usuario'];
-        $tipo = strtolower($_SESSION['tipo_usuario']);
-        $fecha_prestamo = date('Y-m-d');
-        $fecha_devolucion = date('Y-m-d', strtotime($fecha_prestamo . ' + 15 days'));
-        $estado = 'activo';
-        $query_prestamo = "INSERT INTO prestamos (id_usuario, id_ejemplar, fecha_prestamo, fecha_devolucion, estado) VALUES ($id_usuario, $id_ejemplar, '$fecha_prestamo', '$fecha_devolucion', '$estado');";
+    return $s;
+}
 
-        //if (mysqli_query($connect, $query_prestamo)) {
-        //    echo "Prestamo solicitado";
-        //} else {
-        //    echo "Error: " . $query_prestamo . "<br>" . mysqli_error($connect);
-        //}
-
-        echo $query_prestamo;
-    } else if (strtolower($_SESSION['tipo_usuario']) == ('alumno')) {
-
-        $fecha_prestamo = date('Y-m-d');
-        $fecha_devolucion = date('Y-m-d', strtotime($fecha_prestamo . ' + 7 days'));
-        $estado = 'activo';
-        $query_prestamo = "INSERT INTO prestamos (id_usuario, id_ejemplar, fecha_prestamo, fecha_devolucion, estado) VALUES ($id_usuario, $id_ejemplar, '$fecha_prestamo', '$fecha_devolucion', '$estado');";
-        //if (mysqli_query($connect, $query_prestamo)) {
-        //    echo "Prestamo solicitado";
-        //} else {
-        //    echo "Error: " . $query_prestamo . "<br>" . mysqli_error($connect);
-        //}
-        echo $query_prestamo;
+function cantidadPrestamos($id_usuario)
+{
+    include('conexion.php');
+    $query = "SELECT COUNT(*) as cantidad FROM prestamos WHERE id_usuario = $id_usuario and estado = 'en prestamo';";
+    $resultado = mysqli_query($connect, $query);
+    $fila = mysqli_fetch_array($resultado);
+    return $fila['cantidad'];
+}
+function es_prestamo_unico($id_usuario, $id_ejemplar)
+{
+    include('conexion.php');
+    $query = "SELECT COUNT(*) as cantidad FROM prestamos WHERE id_usuario = $id_usuario and estado = 'en prestamo' and id_ejemplar=$id_ejemplar;";
+    $resultado = mysqli_query($connect, $query);
+    $fila = mysqli_fetch_array($resultado);
+    return $fila['cantidad'];
+    if ($fila['cantidad'] > 0) {
+        return false;
+    } else {
+        return true;
     }
 }
 
+
+
+if (isset($_POST['solicitar_prestamo'])) {
+
+    $codigo_ejemplar = $_POST['codigo'];
+    $id_usuario = $_SESSION['id_usuario'];
+    $tipo = strtolower($_SESSION['tipo_usuario']);
+    $id_ejemplar = $_POST['id_ejemplar'];
+    $estado = $_POST['estado'];
+    $cantidad = cantidadPrestamos($id_usuario);
+    $fecha_inicio_prestamo = $_POST['fecha_inicio_prestamo'];
+    $fecha_inicio_prestamo == ''? $fecha_inicio_prestamo=date('Y-m-d') : $fecha_inicio_prestamo;
+    $dias_prestamo = $_POST['dias_prestamo'];
+    $codigo_prestamo = generarCodigo(explode('-', $_SESSION['rut'])[0], $codigo_ejemplar, $fecha_inicio_prestamo);
+    echo es_prestamo_unico($id_usuario, $id_ejemplar);
+
+    var_dump($_POST);
+    if (!strtolower($estado) == 'disponible') {
+        echo "El ejemplar no se encuentra disponible";
+    } else {
+        echo "prestamo unico" . es_prestamo_unico($id_usuario, $id_ejemplar) . "<br>";
+        if (es_prestamo_unico($id_usuario, $id_ejemplar) < 1) {
+            $estado = 'en prestamo';
+
+            if (strtolower($_SESSION['tipo_usuario']) == ('docente')) {
+
+
+                $fecha_devolucion = date('Y-m-d', strtotime($fecha_inicio_prestamo  . ' + ' . $dias_prestamo . ' days'));
+                $query_prestamo = "INSERT INTO prestamos (id_usuario, id_ejemplar, codigo_prestamo,fecha_prestamo, fecha_devolucion, estado) VALUES ($id_usuario, $id_ejemplar,'$codigo_prestamo', '$fecha_inicio_prestamo ', '$fecha_devolucion', 'al dia');";
+                if (mysqli_query($connect, $query_prestamo)) {
+                    echo "Registro guardado";
+                } else {
+                    echo "Error: " . $query_prestamo . "<br>" . mysqli_error($connect);
+                }
+            } else {
+                $fecha_devolucion = date('Y-m-d', strtotime($fecha_inicio_prestamo  . ' + ' . $dias_prestamo . ' days'));
+                if ($cantidad >= 4) {
+                    echo "No puede solicitar mas de 4 libros";
+                } else {
+                    $query_prestamo = "INSERT INTO prestamos (id_usuario, id_ejemplar, codigo_prestamo,fecha_prestamo, fecha_devolucion, estado) VALUES ($id_usuario, $id_ejemplar,'$codigo_prestamo', '$fecha_inicio_prestamo ', '$fecha_devolucion', 'al dia');";
+                    if (mysqli_query($connect, $query_prestamo)) {
+                        echo "Registro guardado";
+                    } else {
+                        echo "Error: " . $query_prestamo . "<br>" . mysqli_error($connect);
+                    }
+                }
+            }
+        }
+    }
+}
 
 
 
@@ -156,7 +232,10 @@ if ($_SESSION['tipo_usuario'] == 'Administrativo') {
                     $.ajax({ //metodo ajax
                         type: "POST", //aqui puede  ser get o post
                         url: "buscar_libro.php", //la url donde se va a mandar la cadena a buscar
-                        data: {cadena:cadenaBuscar, tipo:'prestamo'},
+                        data: {
+                            cadena: cadenaBuscar,
+                            tipo: 'prestamo'
+                        },
                         cache: false,
                         success: function(html) //funcion que se activa al recibir un dato
                         {
@@ -204,8 +283,8 @@ if ($_SESSION['tipo_usuario'] == 'Administrativo') {
 <?php
 
 
-
-echo <<<EOT
+if (isset($_POST['id_libro'])) {
+    echo <<<EOT
     <div class="mt-4 card">
     <form class="mt-5" action="" method="post" enctype="multipart/form-data" style="margin:auto; " ;>
         <h3>Prestamos</h3>
@@ -215,37 +294,37 @@ echo <<<EOT
                 <div class="col-4">
                         <div class="mb-3">
                             <label for="id_libro" class="form-label">ID:</label>
-                            <input type="text" class="form-control" id="id_libro" name="id_libro" value="$id_libro">
+                            <input type="text" class="form-control" id="id_libro" name="id_libro" readonly value="$id_libro">
                         </div>
                     </div>
                     <div class="col-4">
                         <div class="mb-3">
                             <label for="titulo" class="form-label">Titulo:</label>
-                            <input type="text" class="form-control" id="titulo" name="titulo" value="$titulo">
+                            <input type="text" class="form-control" id="titulo" name="titulo" readonly value="$titulo">
                         </div>
                     </div>
                     <div class="col-4">
                         <div class="mb-3">
                             <label for="autor" class="form-label">Autor</label>
-                            <input type="text" class="form-control" id="autor" name="autor" value="$autor">
+                            <input type="text" class="form-control" id="autor" name="autor" readonly value="$autor">
                         </div>
                     </div>
                     <div class="col-4">
                         <div class="mb-3">
                             <label for="editorial" class="form-label">Editorial</label>
-                            <input type="text" class="form-control" id="editorial" name="editorial" value="$editorial">
+                            <input type="text" class="form-control" id="editorial" name="editorial" readonly value="$editorial">
                         </div>
                     </div>
                     <div class="col-4">
                         <div class="mb-3">
                             <label for="fecha-publicacion" class="form-label">Fecha de Publicación</label>
-                            <input type="text" class="form-control" id="fecha_publicacion" name="fecha-publicacion" value="$fecha">
+                            <input type="text" class="form-control" id="fecha_publicacion" name="fecha-publicacion" readonly value="$fecha">
                         </div>
                     </div>
                     <div class="col-4">
                         <div class="mb-3">
                             <label for="stock" class="form-label">Stock</label>
-                            <input type="number" class="form-control" id="stock" name="stock" value="$stock">
+                            <input type="number" class="form-control" id="stock" name="stock" readonly value="$stock">
                         </div>
 
 
@@ -268,8 +347,7 @@ echo <<<EOT
     </form>
 </div>
 EOT;
-
-
+}
 
 
 
@@ -300,7 +378,7 @@ EOT;
 }
 
 
-if (isset($_POST['ejemplares']) && isset($_GET['id_libro'])) {
+if (isset($_POST['ejemplares'])) {
 
 
     echo <<<EOT
@@ -308,6 +386,7 @@ if (isset($_POST['ejemplares']) && isset($_GET['id_libro'])) {
     <table class="table table-hover table-striped table-light sortable">
         <thead class="thead-dark">
             <tr>
+                <th>Titulo</th>
                 <th>Código de Ejemplar</th>
                 <th>Estado</th>
                 <th>Condición</th>
@@ -324,18 +403,122 @@ EOT;
 
 
 
+if (isset($_POST['id_ejemplar'])) {
+
+    (strtolower($_SESSION['tipo_usuario']) == 'docente') ? $dias_prestamo = 20 : $dias_prestamo = 7;
+    echo "Dias de prestamo: " . $dias_prestamo;
+    $sel = '';
+    echo <<<EOT
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            var inputDiasPrestamo = document.getElementById('dias_prestamo');
+            inputDiasPrestamo.addEventListener('input', function () {
+                if (inputDiasPrestamo.value > $dias_prestamo) {
+                    inputDiasPrestamo.value = $dias_prestamo;
+                } else if (inputDiasPrestamo.value < 0) {
+                    inputDiasPrestamo.value = 0;
+                }
+            });
+            inputDiasPrestamo.setAttribute('max', $dias_prestamo);
+            inputDiasPrestamo.setAttribute('min', 0);
+        });
+    </script>
+    <div class="mt-4 card">
+    <form class="mt-5" action="" method="post" enctype="multipart/form-data" style="margin:auto; " ;>
+    <div class="row">
+        <div class="col-9">
+            <div class="row">
+                <div class="col-2">
+                    <div class="mb-3">
+                        <label for="id_ejemplar" class="form-label">ID:</label>
+                        <input type="text" class="form-control" id="id_ejemplar" name="id_ejemplar" readonly value="$id_ejemplar">
+                    </div>
+                </div>
+                <div class="col-2">
+                    <div class="mb-3">
+                        <label for="id_libro_ejemplar" class="form-label">ID Libro:</label>
+                        <input type="text" class="form-control" id="id_libro_ejemplar" name="id_libro_ejemplar" readonly value="$id_libro_ejemplar">
+                    </div>
+                </div>
+                
+                <div class="col-4">
+                    <div class="mb-3">
+                        <label for="codigo" class="form-label">Código de Ejemplar:</label>
+                        <input type="text" class="form-control" id="codigo" name="codigo" readonly value="$codigo">
+                    </div>
+                </div>
+                <div class="col-4">
+                    <div class="mb-3">
+                        <label for="titulo" class="form-label">Titulo:</label>
+                        <input type="text" class="form-control" id="titulo" name="titulo" readonly value="$titulo_ejemplar">
+                    </div>
+                </div>
+                </div>
+            <div class="row">
+            
+            <div class="col-4">
+                <div class="mb-3">
+                    <label for="condicion" class="form-label">Condición:</label>
+                    <select name="condicion" class="form-control" id="condicion" readonly name="condicion" ;>
+    EOT;
+    (strtolower($condicion)) == '' ? $sel = 'selected' : $sel = "";
+    echo '<option value="" ' . $sel . '>Seleccione condicion del ejemplar</option>';
+    (strtolower($condicion)) == 'nuevo' ? $sel = 'selected' : $sel = "";
+    echo '<option value="nuevo" ' . $sel . '>Nuevo</option>';
+    (strtolower($condicion)) == 'semi_nuevo' ? $sel = 'selected' : $sel = "";
+    echo '<option value="semi nuevo" ' . $sel . '>Semi Nuevo</option>';
+    (strtolower($condicion)) == 'deteriorado' ? $sel = 'selected' : $sel = "";
+    echo '<option value="deteriorado" ' . $sel . '>Deteriorado</option>';
+    (strtolower($condicion)) == 'buena' ? $sel = 'selected' : $sel = "";
+    echo '<option value="buena" ' . $sel . '>Buena</option>';
+    echo <<<EOT
+                    </select>
+                </div>
+            </div>
+                <div class="col-4">
+                    <label for="estado" class="form-label">Estado:</label>
+                            <select name="estado" class="form-control" id="estado" readonly name="estado" ;>
+    EOT;
 
 
-
-
-
-
-
-
-
-
-
-
+    (strtolower($estado)) == 'no disponible' ? $sel = 'selected' : $sel = "";
+    echo '<option value="no-disponible" ' . $sel . '>No Disponible</option>';
+    (strtolower($estado)) == 'disponible' ? $sel = 'selected' : $sel = "";
+    echo '<option value="disponible" ' . $sel . '>Disponible</option>';
+    (strtolower($estado)) == 'en prestamo' ? $sel = 'selected' : $sel = "";
+    echo '<option value="en-prestamo" ' . $sel . '>En Prestamo</option>';
+    (strtolower($estado)) == 'eliminado' ? $sel = 'selected' : $sel = "";
+    echo '<option value="eliminado" ' . $sel . '>Eliminado</option>';
+    echo <<<EOT
+                </select>
+                </div>
+                <div class="col-4">
+                    <div class="mb-3">
+                        <label for="dias_prestamo" class="form-label">Dias de Prestamo:</label>
+                        <input type="number" class="form-control" id="dias_prestamo" name="dias_prestamo" value="0">
+                    </div>
+                </div>
+            </div>
+            <div class="row" >
+        <div class="col-4">
+        <div class="mb-3">
+            <label for="fecha_inicio_prestamo" class="form-label">Fecha de inicio de prestamo:</label>
+            <input type="date" id="fecha_inicio_prestamo" name="fecha_inicio_prestamo" >
+        </div>
+            </div>
+            </div>
+        </div>
+    </div>
+    <div class="row mb-4">
+        <div class="col-12">
+            <button type="submit" class="btn btn-primary" name="solicitar_prestamo">Solicitar Prestamo</button>
+        </div>
+    </div>
+    </div>
+    </form>
+    </div>
+ EOT;
+}
 
 
 

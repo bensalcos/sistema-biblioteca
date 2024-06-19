@@ -1,37 +1,3 @@
-function toggleActive(button, url) {
-    // Encuentra todos los botones dentro de la agrupación
-    const buttons = document.querySelectorAll('.btn-group-toggle .btn');
-
-    // Remueve la clase 'active' de todos los botones
-    buttons.forEach(btn => btn.classList.remove('active'));
-
-    // Agrega la clase 'active' al botón presionado
-    button.classList.add('active');
-
-    // Guarda el ID del botón activo en localStorage
-    localStorage.setItem('activeButtonId', button.id);
-
-    // Redirige a la página PHP correspondiente
-    window.location.href = url;
-}
-
-function setActiveButton() {
-    // Obtiene el ID del botón activo de localStorage
-    const activeButtonId = localStorage.getItem('activeButtonId');
-
-    if (activeButtonId) {
-        // Encuentra el botón por ID y le agrega la clase 'active'
-        const activeButton = document.getElementById(activeButtonId);
-        if (activeButton) {
-            activeButton.classList.add('active');
-        }
-    }
-}
-
-
-
-
-
 
 function validarRut(rutCompleto) {
     console.log(rutCompleto);
@@ -204,4 +170,16 @@ function GenerarRut() {
     }
 
     return rut + "-" + dv;
+}
+
+
+function dias_prestamo(tipo_usuario) {
+
+    dias = document.getElementById("fecha_devolucion");
+    dias.addEventListener("onChange", function (e) {
+        console.log(dias.value());
+    });
+
+
+    return fecha;
 }

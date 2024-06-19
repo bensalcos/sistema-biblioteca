@@ -21,11 +21,6 @@
 
             </li>
             <li>
-                <a href="libros.php" class="nav-link text-white">
-                    <i class="fa-solid fa-book"></i>Ver Libros
-                </a>
-            </li>
-            <li>
                 <a href="prestamos.php" class="nav-link text-white">
                     <i class="fa-solid fa-receipt"></i> Mis Prestamos
                 </a>
