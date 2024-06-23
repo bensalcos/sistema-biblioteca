@@ -8,7 +8,7 @@ $query_editoriales = "SELECT id_editorial,nombre, (SELECT count(*) FROM libros W
 
 $libros_editorial = '';
 
-if (isset($_POST['libros_editorial']) && isset($_GET['id'])) {
+if (isset($_POST['libros_editorial']) && isset($_POST['id_editorial'])) {
 
     $query_libros_editorial = "SELECT 
         libros.id_libro,
@@ -22,7 +22,7 @@ if (isset($_POST['libros_editorial']) && isset($_GET['id'])) {
         JOIN 
         editoriales ON libros.editorial = editoriales.nombre
         WHERE 
-        editoriales.id_editorial = '" . $_GET['id'] . "';";
+        editoriales.id_editorial = '" . $_POST['id_editorial'] . "';";
 
 
 
@@ -34,7 +34,10 @@ if (isset($_POST['libros_editorial']) && isset($_GET['id'])) {
             $libros_editorial .= "<td>" . $fila['editorial'] . "</td>";
             $libros_editorial .= "<td>" . $fila['fecha_publicacion'] . "</td>";
             $libros_editorial .= "<td>" . $fila['stock'] . "</td>";
-            $libros_editorial .= "<td><a href='libros.php?id=" . $fila['id_libro'] . "'><i class='bi bi-gear text-danger'></i></a></td>";
+            $libros_editorial .= "<td><form method='POST' action='libros.php'>
+                    <input type='hidden' name='id' value='" . $fila['id_libro'] . "'>
+                    <button type='submit' class='btn btn-secondary'>Detalles</button>
+                </form></td>";
             $libros_editorial .= "</tr>";
         }
     } else {
@@ -48,37 +51,38 @@ if (isset($_POST['libros_editorial']) && isset($_GET['id'])) {
 
 
 if (isset($_POST['guardar'])) {
-    $id = $_POST['id'];
+    $id = $_POST['id_editorial'];
     $nombre = $_POST['nombre'];
 
 
     if ($id == "") {
         $query = "INSERT INTO editoriales(nombre) VALUES ('$nombre');";
     } else {
+
         $query = "UPDATE editoriales SET nombre='$nombre' WHERE id_editorial=$id;";
     }
 
     if (mysqli_query($connect, $query)) {
-        echo "Registro guardado";
+        echo '<script>agregarAlerta("alert-success", "Editorial guardada con éxito.")</script>';
     } else {
-        echo "Error: " . $query . "<br>" . mysqli_error($connect);
+        echo '<script>agregarAlerta("alert-success", "Error, no se pudo guardar la editorial.")</script>';
     }
 }
 
 if (isset($_POST['eliminar'])) {
-    $id = $_POST['id'];
+    $id = $_POST['id_editorial'];
     $query = "DELETE FROM editoriales WHERE id_editorial=$id;";
     if (mysqli_query($connect, $query)) {
-        echo "Registro eliminado";
+        echo '<script>agregarAlerta("alert-success", "Editorial eliminada con éxito.")</script>';
     } else {
-        echo "Error: " . $query . "<br>" . mysqli_error($connect);
+        echo '<script>agregarAlerta("alert-success", "Error, no se pudo eliminar la editorial.")</script>';
     }
-    header('location: editoriales.php');
 }
+
 
 $editoriales = '';
 
-if (isset($_POST['listar'])) {
+if (isset($_POST['listar'])  || $_POST == array()) {
     if ($resultado = mysqli_query($connect, $query_editoriales)) {
         while ($fila = mysqli_fetch_array($resultado)) {
 
@@ -86,7 +90,10 @@ if (isset($_POST['listar'])) {
             $editoriales .= "<td>" . $fila['id_editorial'] . "</td>";
             $editoriales .= "<td>" . $fila['nombre'] . "</td>";
             $editoriales .= "<td>" . $fila['publicaciones'] . "</td>";
-            $editoriales .= "<td><a href='editoriales.php?id=" . $fila['id_editorial'] . "'><i class='bi bi-gear text-danger'></i></a></td>";
+            $editoriales .= "<td><form method='POST' action='editoriales.php'>
+                    <input type='hidden' name='id_editorial' value='" . $fila['id_editorial'] . "'>
+                    <button type='submit' class='btn btn-secondary'>Detalles</button>
+                </form></td>";
             $editoriales .= "</tr>";
         }
     } else {
@@ -97,13 +104,13 @@ if (isset($_POST['listar'])) {
 $suma_ejemplares = 0;
 
 
-if (isset($_GET['id'])) {
+if (isset($_POST['id_editorial']) && !isset($_POST['guardar'])) {
     $query_editorial = "SELECT id_editorial,nombre,
     (SELECT count(*) FROM libros WHERE libros.editorial = editoriales.nombre) as publicaciones
-    FROM editoriales WHERE id_editorial=" . $_GET['id'] . ";";
+    FROM editoriales WHERE id_editorial=" . $_POST['id_editorial'] . ";";
     $resultado = mysqli_query($connect, $query_editorial);
     $fila = mysqli_fetch_array($resultado);
-    $id = $fila['id_editorial'];
+    $id_editorial = $fila['id_editorial'];
     $nombre = mb_convert_encoding($fila['nombre'], "UTF-8", "ISO-8859-1");
     $publicaciones = $fila['publicaciones'];
 
@@ -146,14 +153,13 @@ if ($_SESSION['tipo_usuario'] == 'Administrativo') {
             {
                 var texto = $(this).val(); //se recupera el valor del input de texto y se guarda en la variable texto
                 var cadenaBuscar = 'palabra=' + texto; //se guarda en una variable nueva para posteriormente pasarla a buscarCategoria.php
-                console.log(cadenaBuscar);
                 if (texto == '') //si no tiene ningun valor el input de texto no realiza ninguna accion
                 {
                     $("#mostrar").empty();
                 } else {
                     $.ajax({ //metodo ajax
                         type: "POST", //aqui puede  ser get o post
-                        url: "buscar_libro.php", //la url donde se va a mandar la cadena a buscar
+                        url: "buscar_editorial.php", //la url donde se va a mandar la cadena a buscar
                         data: cadenaBuscar,
                         cache: false,
                         success: function(html) //funcion que se activa al recibir un dato
@@ -181,7 +187,7 @@ if ($_SESSION['tipo_usuario'] == 'Administrativo') {
 <div class="mt-4">
 
 
-    <input type="text" class="input-buscar-libros form-control me-2" placeholder="Buscar Libros" id="caja_busqueda">
+    <input type="text" class="input-buscar-libros form-control me-2" placeholder="Buscar Editorial" id="caja_busqueda">
 
 
 
@@ -202,13 +208,16 @@ if ($_SESSION['tipo_usuario'] == 'Administrativo') {
 <?php
 
 
-if (isset($_POST['agregar']) || isset($_GET['id'])) {
+if ((isset($_POST['agregar']) || isset($_POST['id_editorial'])) && !isset($_POST['guardar'])) {
 
     if (isset($_POST['agregar'])) {
-        $id = "";
+        $id_editorial = "";
         $nombre = "";
         $publicaciones = "";
-        $suma_ejemplares = 0;
+        $suma_ejemplares = "";
+        $boton = '';
+    } else {
+        $boton = '<button type="submit" class="btn btn-primary" name="libros_editorial">Ver Libros</button>';
     }
 
 
@@ -220,8 +229,8 @@ if (isset($_POST['agregar']) || isset($_GET['id'])) {
                 <div class="row">
                     <div class="col-2">
                         <div class="mb-3">
-                            <label for="id" class="form-label">ID:</label>
-                            <input type="text" class="form-control" id="id" name="id" readonly value="$id">
+                            <label for="id_editorial" class="form-label">ID:</label>
+                            <input type="text" class="form-control" id="id_editorial" name="id_editorial" readonly value="$id_editorial">
                         </div>
                     </div>
                     <div class="col-4">
@@ -256,8 +265,8 @@ if (isset($_POST['agregar']) || isset($_GET['id'])) {
     <div class="row mb-4">
             <div class="col-12">
                 <button type="submit" class="btn btn-primary" name="limpiar">Limpiar</button>
-                <button type="submit" class="btn btn-primary" name="libros_editorial">Ver Libros</button>
-                <button type="submit" class="btn btn-primary" name="guardar">Modificar</button>
+                <button type="submit" class="btn btn-primary" name="guardar">Guardar</button>
+                $boton
                 <button type="submit" class="btn btn-danger" name="eliminar">Eliminar</button>
             </div>
 
@@ -275,7 +284,7 @@ EOT;
 
 
 
-if (isset($_POST['listar'])) {
+if (isset($_POST['listar'])  || $_POST == array()) {
     echo <<<EOT
     <div class="mt-3 ms-2 me-2" >
     <table class="table table-hover table-striped table-light sortable">
@@ -298,7 +307,7 @@ EOT;
 }
 
 
-if (isset($_POST['libros_editorial']) && isset($_GET['id'])) {
+if (isset($_POST['libros_editorial']) && isset($_POST['id_editorial'])) {
 
     echo <<<EOT
     <div class="mt-3 ms-2 me-2" >

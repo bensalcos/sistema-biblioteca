@@ -234,3 +234,16 @@ main {
   z-index: 10;
   display: flex;
 }
+
+.alerts {
+  width: 45%;
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: 100055;
+  
+}
+
+.alerts .alert {
+  height: 50px;
+}

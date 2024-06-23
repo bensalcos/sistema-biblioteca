@@ -3,60 +3,265 @@ session_start();
 include("conexion.php");
 include("templates/header.php");
 
-
-
-
-$query = "SELECT id_prestamo, id_usuario, id_ejemplar, fecha_prestamo, fecha_devolucion, estado FROM prestamos WHERE estado = 'activo' ORDER BY fecha_prestamo DESC;";
-
-
-$query_multas = "SELECT id_multa, id_prestamo, monto, fecha_multa, estado FROM multas WHERE estado = 'pendiente';";
-
+if (empty($_SESSION)) {
+    header('location: index.html');
+}
 
 $prestamos = '';
-if ($resultado = mysqli_query($connect, $query)) {
-    while ($fila = mysqli_fetch_array($resultado)) {
-        $prestamos .= "<tr class='item'>";
-        $prestamos .= "<td>" . $fila['id_prestamo'] . "</td>";
-        $prestamos .= "<td>" . $fila['id_usuario'] . "</td>";
-        $prestamos .= "<td>" . $fila['id_ejemplar'] . "</td>";
-        $prestamos .= "<td>" . $fila['fecha_prestamo'] . "</td>";
-        $prestamos .= "<td>" . $fila['fecha_devolucion'] . "</td>";
-        $prestamos .= "<td>" . $fila['estado'] . "</td>";
-        $prestamos .= "<td><a href='prestamos.php?id=" . $fila['id_prestamo'] . "'><i class='bi bi-gear text-danger'></i></a></td>";
-        $prestamos .= "</tr>";
+
+function actualizar_prestamo($connect)
+{
+    $fechaActual = date('Y-m-d');
+
+    // Verificar y actualizar los préstamos que están atrasados
+    $sql = "UPDATE prestamos 
+        SET estado = 'atrasado' 
+        WHERE fecha_devolucion < '$fechaActual' 
+        AND estado != 'atrasado'";
+
+    if (mysqli_query($connect, $sql)) {
+        $c = 0;
+    } else {
+        $c = 0;
     }
-} else {
-    echo "Error: " . $query . "<br>" . mysqli_error($connect);
 }
-$prestamos = mb_convert_encoding($prestamos, "UTF-8", "ISO-8859-1");
+if (isset($_POST['activos']) || $_POST == array()) {
+
+    actualizar_prestamo($connect);
+    $query = "SELECT id_prestamo, id_usuario, id_ejemplar, fecha_prestamo, fecha_devolucion, estado, renovaciones FROM prestamos  ORDER BY fecha_prestamo DESC;";
+    $prestamos = '';
 
 
-$multas = '';
+    if ($resultado = mysqli_query($connect, $query)) {
+        while ($fila = mysqli_fetch_array($resultado)) {
+            $id_libro = get_id_libro($fila['id_ejemplar']);
+            $query_libro = "SELECT * FROM libros WHERE id_libro = " . $id_libro . ";";
+            $resultado_libro = mysqli_query($connect, $query_libro);
+            $fila_libro = mysqli_fetch_assoc($resultado_libro);
+            $query_usuario = "SELECT * FROM usuarios WHERE id_usuario = " . $fila['id_usuario'] . ";";
+            $resultado_usuario = mysqli_query($connect, $query_usuario);
+            $fila_usuario = mysqli_fetch_assoc($resultado_usuario);
 
-if ($resultado = mysqli_query($connect, $query_multas)) {
-    while ($fila = mysqli_fetch_array($resultado)) {
-        $multas .= "<tr class='item'>";
-        $multas .= "<td>" . $fila['id_multa'] . "</td>";
-        $multas .= "<td>" . $fila['id_prestamo'] . "</td>";
-        $multas .= "<td>" . $fila['monto'] . "</td>";
-        $multas .= "<td>" . $fila['fecha_multa'] . "</td>";
-        $multas .= "<td>" . $fila['estado'] . "</td>";
-        $multas .= "<td><a href='prestamos.php?id=" . $fila['id_multa'] . "'><i class='bi bi-gear text-danger'></i></a></td>";
-        $multas .= "</tr>";
+            $prestamos .= "<tr class='item'>";
+            $prestamos .= "<td>" . $fila['id_prestamo'] . "</td>";
+            $prestamos .= "<td>" . ucfirst($fila_usuario['nombre']) . ' ' . $fila_usuario['apellido']  . "</td>";
+            $prestamos .= "<td>" . $fila_usuario['rut'] . "</td>";
+            $prestamos .= "<td>" . ucfirst($fila_usuario['tipo_usuario']) . "</td>";
+            $prestamos .= "<td>" . $fila_usuario['correo']. "</td>";
+            $prestamos .= "<td>" . $fila_libro['titulo'] . "</td>";
+            $prestamos .= "<td>" . $fila['fecha_prestamo'] . "</td>";
+            $prestamos .= "<td>" . $fila['fecha_devolucion'] . "</td>";
+            $prestamos .= "<td>" . $fila['estado'] . "</td>";
+            $prestamos .= "<td>" . $fila['renovaciones'] . "</td>";
+            $prestamos .= "</tr>";
+        }
+        $prestamos = mb_convert_encoding($prestamos, "UTF-8", "ISO-8859-1");
+    } else {
+        echo "Error: " . $query . "<br>" . mysqli_error($connect);
     }
-} else {
-    echo "Error: " . $query . "<br>" . mysqli_error($connect);
 }
 
-$multas = mb_convert_encoding($multas, "UTF-8", "ISO-8859-1");
+
+if (isset($_POST['pendientes'])) {
+
+    $query = "SELECT id_prestamo, id_usuario, id_ejemplar, fecha_prestamo, fecha_devolucion, estado, renovaciones FROM prestamos  ORDER BY fecha_prestamo DESC;";
+    $prestamos = '';
+    actualizar_prestamo($connect);
+
+    if ($resultado = mysqli_query($connect, $query)) {
+        while ($fila = mysqli_fetch_array($resultado)) {
+            $id_libro = get_id_libro($fila['id_ejemplar']);
+            $query_libro = "SELECT * FROM libros WHERE id_libro = " . $id_libro . ";";
+            $resultado_libro = mysqli_query($connect, $query_libro);
+            $fila_libro = mysqli_fetch_assoc($resultado_libro);
+            $query_usuario = "SELECT * FROM usuarios WHERE id_usuario = " . $fila['id_usuario'] . ";";
+            $resultado_usuario = mysqli_query($connect, $query_usuario);
+            $fila_usuario = mysqli_fetch_assoc($resultado_usuario);
+
+            if ($fila['estado'] == 'pendiente' || $fila['estado'] == 'atrasado') {
+                $prestamos .= "<tr class='item'>";
+                $prestamos .= "<td>" . $fila['id_prestamo'] . "</td>";
+                $prestamos .= "<td>" . ucfirst($fila_usuario['nombre']) . ' ' . $fila_usuario['apellido']  . "</td>";
+                $prestamos .= "<td>" . $fila_usuario['rut'] . "</td>";
+                $prestamos .= "<td>" . ucfirst($fila_usuario['tipo_usuario']) . "</td>";
+                $prestamos .= "<td>" . $fila_usuario['correo']. "</td>";
+                $prestamos .= "<td>" . $fila_libro['titulo'] . "</td>";
+                $prestamos .= "<td>" . $fila['fecha_prestamo'] . "</td>";
+                $prestamos .= "<td>" . $fila['fecha_devolucion'] . "</td>";
+                $prestamos .= "<td>" . $fila['estado'] . "</td>";
+                $prestamos .= "<td>" . $fila['renovaciones'] . "</td>";
+
+                $prestamos .= "</tr>";
+            }
+        }
+        $prestamos = mb_convert_encoding($prestamos, "UTF-8", "ISO-8859-1");
+    } else {
+        echo "Error: " . $query . "<br>" . mysqli_error($connect);
+    }
+}
+
+function get_id_libro($id_ejemplar)
+{
+    include('conexion.php');
+    $query = "SELECT id_libro FROM ejemplares WHERE id_ejemplar = $id_ejemplar;";
+    $resultado = mysqli_query($connect, $query);
+    $fila = mysqli_fetch_array($resultado);
+    return $fila['id_libro'];
+}
+if (isset($_POST['multas'])) {
+
+    $query = "SELECT id_prestamo, id_usuario, id_ejemplar, fecha_prestamo, fecha_devolucion, estado, renovaciones FROM prestamos  ORDER BY fecha_prestamo DESC;";
+    $prestamos = '';
+    actualizar_prestamo($connect);
+
+    if ($resultado = mysqli_query($connect, $query)) {
+        while ($fila = mysqli_fetch_array($resultado)) {
+
+            $id_libro = get_id_libro($fila['id_ejemplar']);
+            $query_libro = "SELECT * FROM libros WHERE id_libro = " . $id_libro . ";";
+            $resultado_libro = mysqli_query($connect, $query_libro);
+            $fila_libro = mysqli_fetch_assoc($resultado_libro);
+            $query_usuario = "SELECT * FROM usuarios WHERE id_usuario = " . $fila['id_usuario'] . ";";
+            $resultado_usuario = mysqli_query($connect, $query_usuario);
+            $fila_usuario = mysqli_fetch_assoc($resultado_usuario);
+            $fecha_actual = date('Y-m-d');
+            $fecha_devolucion = $fila['fecha_devolucion'];
+            $dias_atraso = strtotime($fecha_actual) - strtotime($fecha_devolucion);
+            $dias_atraso = ($dias_atraso / 86400);
+            $multa = $dias_atraso * 1000;
+
+            if ($fila['estado'] == 'atrasado' || $fila['estado'] == 'pendiente') {
+                $prestamos .= "<tr class='item'>";
+                $prestamos .= "<td>" . $fila['id_prestamo'] . "</td>";
+                $prestamos .= "<td>" . ucfirst($fila_usuario['nombre'] . ' ' . $fila_usuario['apellido'])  . "</td>";
+                $prestamos .= "<td>" . $fila_usuario['rut'] . "</td>";
+                $prestamos .= "<td>" . ucfirst($fila_usuario['tipo_usuario']) . "</td>";
+                $prestamos .= "<td>" . $fila_usuario['correo']. "</td>";
+                $prestamos .= "<td>" . $fila_libro['titulo'] . "</td>";
+                $prestamos .= "<td>" . $fila['fecha_prestamo'] . "</td>";
+                $prestamos .= "<td>" . $fila['fecha_devolucion'] . "</td>";
+                $prestamos .= "<td>" . $fila['estado'] . "</td>";
+                $prestamos .= "<td>" . '$'. $multa . "</td>";
+
+                $prestamos .= "</tr>";
+            }
+        }
+        $prestamos = mb_convert_encoding($prestamos, "UTF-8", "ISO-8859-1");
+    } else {
+        echo "Error: " . $query . "<br>" . mysqli_error($connect);
+    }
+}
+if (isset($_POST['docentes'])) {
+    $query = "SELECT id_prestamo, id_usuario, id_ejemplar, fecha_prestamo, fecha_devolucion, estado, renovaciones FROM prestamos  ORDER BY fecha_prestamo DESC;";
+    $prestamos = '';
+    actualizar_prestamo($connect);
+
+    if ($resultado = mysqli_query($connect, $query)) {
+        while ($fila = mysqli_fetch_array($resultado)) {
+            $id_libro = get_id_libro($fila['id_ejemplar']);
+            $query_libro = "SELECT * FROM libros WHERE id_libro = " . $id_libro . ";";
+            $resultado_libro = mysqli_query($connect, $query_libro);
+            $fila_libro = mysqli_fetch_assoc($resultado_libro);
+            $query_usuario = "SELECT * FROM usuarios WHERE id_usuario = " . $fila['id_usuario'] . ";";
+            $resultado_usuario = mysqli_query($connect, $query_usuario);
+            $fila_usuario = mysqli_fetch_assoc($resultado_usuario);
+
+            if (strtolower($fila_usuario['tipo_usuario']) == 'docente') {
+                $prestamos .= "<tr class='item'>";
+                $prestamos .= "<td>" . $fila['id_prestamo'] . "</td>";
+                $prestamos .= "<td>" . ucfirst($fila_usuario['nombre']) . ' ' . $fila_usuario['apellido']  . "</td>";
+                $prestamos .= "<td>" . $fila_usuario['rut'] . "</td>";
+                $prestamos .= "<td>" . ucfirst($fila_usuario['tipo_usuario']) . "</td>";
+                $prestamos .= "<td>" . $fila_usuario['correo']. "</td>";
+                $prestamos .= "<td>" . $fila_libro['titulo'] . "</td>";
+                $prestamos .= "<td>" . $fila['fecha_prestamo'] . "</td>";
+                $prestamos .= "<td>" . $fila['fecha_devolucion'] . "</td>";
+                $prestamos .= "<td>" . $fila['estado'] . "</td>";
+                $prestamos .= "<td>" . $fila['renovaciones'] . "</td>";
+
+                $prestamos .= "</tr>";
+            }
+        }
+        $prestamos = mb_convert_encoding($prestamos, "UTF-8", "ISO-8859-1");
+    } else {
+        echo "Error: " . $query . "<br>" . mysqli_error($connect);
+    }
+}
+if (isset($_POST['alumnos'])) {
+    $query = "SELECT id_prestamo, id_usuario, id_ejemplar, fecha_prestamo, fecha_devolucion, estado, renovaciones FROM prestamos  ORDER BY fecha_prestamo DESC;";
+    $prestamos = '';
+    actualizar_prestamo($connect);
+
+    if ($resultado = mysqli_query($connect, $query)) {
+        while ($fila = mysqli_fetch_array($resultado)) {
+            $id_libro = get_id_libro($fila['id_ejemplar']);
+            $query_libro = "SELECT * FROM libros WHERE id_libro = " . $id_libro . ";";
+            $resultado_libro = mysqli_query($connect, $query_libro);
+            $fila_libro = mysqli_fetch_assoc($resultado_libro);
+            $query_usuario = "SELECT * FROM usuarios WHERE id_usuario = " . $fila['id_usuario'] . ";";
+            $resultado_usuario = mysqli_query($connect, $query_usuario);
+            $fila_usuario = mysqli_fetch_assoc($resultado_usuario);
+
+            if (strtolower($fila_usuario['tipo_usuario']) == 'alumno') {
+                $prestamos .= "<tr class='item'>";
+                $prestamos .= "<td>" . $fila['id_prestamo'] . "</td>";
+                $prestamos .= "<td>" . ucfirst($fila_usuario['nombre']) . ' ' . $fila_usuario['apellido']  . "</td>";
+                $prestamos .= "<td>" . $fila_usuario['rut'] . "</td>";
+                $prestamos .= "<td>" . ucfirst($fila_usuario['tipo_usuario']) . "</td>";
+                $prestamos .= "<td>" . $fila_usuario['correo']. "</td>";
+                $prestamos .= "<td>" . $fila_libro['titulo'] . "</td>";
+                $prestamos .= "<td>" . $fila['fecha_prestamo'] . "</td>";
+                $prestamos .= "<td>" . $fila['fecha_devolucion'] . "</td>";
+                $prestamos .= "<td>" . $fila['estado'] . "</td>";
+                $prestamos .= "<td>" . $fila['renovaciones'] . "</td>";
+
+                $prestamos .= "</tr>";
+            }
+        }
+        $prestamos = mb_convert_encoding($prestamos, "UTF-8", "ISO-8859-1");
+    } else {
+        echo "Error: " . $query . "<br>" . mysqli_error($connect);
+    }
+}
+
+if (isset($_POST['detalles'])) {
+    actualizar_prestamo($connect);
+
+    $id_usuario = $_POST['id_usuario'];
+    $query = "SELECT id_prestamo, id_usuario, id_ejemplar, fecha_prestamo, fecha_devolucion, estado, renovaciones FROM prestamos WHERE id_usuario=$id_usuario ORDER BY fecha_prestamo DESC;";
+    
 
 
+    if ($resultado = mysqli_query($connect, $query)) {
+        while ($fila = mysqli_fetch_array($resultado)) {
+            $id_libro = get_id_libro($fila['id_ejemplar']);
+            $query_libro = "SELECT * FROM libros WHERE id_libro = " . $id_libro . ";";
+            $resultado_libro = mysqli_query($connect, $query_libro);
+            $fila_libro = mysqli_fetch_assoc($resultado_libro);
+            $query_usuario = "SELECT * FROM usuarios WHERE id_usuario = " . $fila['id_usuario'] . ";";
+            $resultado_usuario = mysqli_query($connect, $query_usuario);
+            $fila_usuario = mysqli_fetch_assoc($resultado_usuario);
+            
+            $prestamos .= "<tr class='item'>";
+            $prestamos .= "<td>" . $fila['id_prestamo'] . "</td>";
+            $prestamos .= "<td>" . ucfirst($fila_usuario['nombre']) . ' ' . $fila_usuario['apellido']  . "</td>";
+            $prestamos .= "<td>" . $fila_usuario['rut'] . "</td>";
+            $prestamos .= "<td>" . ucfirst($fila_usuario['tipo_usuario']) . "</td>";
+            $prestamos .= "<td>" . $fila_usuario['correo']. "</td>";
+            $prestamos .= "<td>" . $fila_libro['titulo'] . "</td>";
+            $prestamos .= "<td>" . $fila['fecha_prestamo'] . "</td>";
+            $prestamos .= "<td>" . $fila['fecha_devolucion'] . "</td>";
+            $prestamos .= "<td>" . $fila['estado'] . "</td>";
+            $prestamos .= "<td>" . $fila['renovaciones'] . "</td>";
+            $prestamos .= "</tr>";
 
 
-
-
-
-
+        }
+        $prestamos = mb_convert_encoding($prestamos, "UTF-8", "ISO-8859-1");
+    } else {
+        echo "Error: " . $query . "<br>" . mysqli_error($connect);
+    }
+}
 
 
 if ($_SESSION['tipo_usuario'] == 'Administrativo') {
@@ -65,20 +270,48 @@ if ($_SESSION['tipo_usuario'] == 'Administrativo') {
     header('location: index.html');
 }
 ?>
+<script>
+    $(document).ready(function() {
+        console.log("ready!");
+        $(".input-buscar-usuarios").keyup(function() //se crea la funcion keyup
+            {
+                console.log("keyup!");
+                var texto = $(this).val(); //se recupera el valor del input de texto y se guarda en la variable texto
+                var cadenaBuscar = 'palabra=' + texto; //se guarda en una variable nueva para posteriormente pasarla a buscarCategoria.php
+                if (texto == '') //si no tiene ningun valor el input de texto no realiza ninguna accion
+                {
+                    $("#mostrar").empty();
+                } else {
+                    $.ajax({ //metodo ajax
+                        type: "POST", //aqui puede  ser get o post
+                        url: "buscar_usuario_reporte.php", //la url donde se va a mandar la cadena a buscar
+                        data: cadenaBuscar,
+                        cache: false,
+                        success: function(html) //funcion que se activa al recibir un dato
+                        {
+                            $("#mostrar").html(html).show(); // funcion jquery que muestra el div con identificador mostrar, como formato html
+                        }
+                    });
+                }
+                return false;
+            });
+    });
+</script>
 
 
-
-
-<div class="d-grid d-md-flex mt-2">
-    <input type="submit" class="btn btn-secondary" id="limpiar" name="limpiar" value="Prestamos activos">
-    <input type="submit" class="btn btn-success" id="crear" name="multas" value="Multas">
-</div>
+<form action="" method="post" enctype="multipart/form-data" style="margin:auto; " ;>
+    <div class="d-grid d-md-flex mt-2">
+        <input type="submit" class="btn btn-primary" id="activos" name="activos" value="Ultimos prestamos">
+        <input type="submit" class="btn btn-secondary" id="docentes" name="docentes" value="Prestamos Docentes">
+        <input type="submit" class="btn btn-secondary" id="alumnos" name="alumnos" value="Prestamos Alumnos">
+        <input type="submit" class="btn btn-secondary" id="pendientes" name="pendientes" value="Prestamos Atrasados">
+        <input type="submit" class="btn btn-success" id="multas" name="multas" value="Multas">
+    </div>
+</form>
 
 
 <div class="mt-4">
-    <input type="text" class="input-buscar-usuarios form-control me-2" placeholder="Buscar Usuario" id="caja_busqueda">
-
-
+    <input type="text" class="input-buscar-usuarios form-control me-2" placeholder="Buscar Usuario por RUT" id="caja_busqueda">
     <div class="card" id="mostrar">
 
 
@@ -87,110 +320,32 @@ if ($_SESSION['tipo_usuario'] == 'Administrativo') {
 </div>
 
 
-
-<div class="mt-4 card">
-    <form class="mt-5" action="" method="post" enctype="multipart/form-data" style="margin: auto; " ;>
-        <div class="row">
-
-
-            <div class="col-4">
-                <img class="rounded mx-auto d-block" src='media/img/<?php echo $foto; ?>' width='100' height='100' class='rounded-circle me-2'>
-                <div class="mb-3">
-                    <label for="subir-foto" class="form-label">Subir foto</label>
-                    <input class="form-control" type="file" id="subir-foto">
-                </div>
-
-            </div>
-
-
-
-            <div class="col-8">
-                <div class="row">
-                    <div class="col-6">
-                        <div class="mb-3">
-                            <label for="id" class="form-label">ID:</label>
-                            <input type="text" class="form-control" id="id" name="id" readonly value="<?php echo $id; ?>">
-                        </div>
-                    </div>
-                    <div class="col-6">
-                        <div class="mb-3">
-                            <label for="nombre" class="form-label">Nombre:</label>
-                            <input type="text" class="form-control" id="nombre" name="nombre" value="<?php echo $nombre; ?>">
-                        </div>
-                    </div>
-
-
-                </div>
-
-                <div class="row">
-                    <div class="col-6">
-                        <div class="mb-3">
-                            <label for="apellido" class="form-label">Apellido:</label>
-                            <input type="text" class="form-control" id="apellido" name="apellido" value="<?php echo $apellido; ?>">
-                        </div>
-                    </div>
-                    <div class="col-6">
-                        <div class="mb-3">
-                            <label for="rut" class="form-label">Rut:</label>
-                            <input type="text" class="form-control" id="rut" name="rut" value="<?php echo $rut; ?>">
-                        </div>
-                    </div>
-
-                    <div class="row">
-                        <div class="col-6">
-                            <div class="mb-3">
-                                <label for="correo" class="form-label">Correo:</label>
-                                <input type="text" class="form-control" id="correo" name="correo" value="<?php echo $correo; ?>">
-                            </div>
-                        </div>
-                        <div class="col-6">
-                            <div class="mb-3">
-                                <label for="tipo" class="form-label">Tipo de usuario:</label>
-                                <input type="text" class="form-control" id="tipo" name="tipo" readonly value="<?php echo $tipo_usuario; ?>">
-                            </div>
-                        </div>
-
-
-
-                    </div>
-
-                </div>
-
-
-
-
-
-
-
-
-            </div>
-
-        </div>
-
-        <div class="row mt-2 mb-5">
-            <div class="col-12">
-
-                <input type="submit" class="btn btn-info" id="limpiar" name="limpiar" value="Limpiar">
-                <input type="submit" class="btn btn-success" id="crear" name="crear" value="Registrar">
-                <input type="submit" class="btn btn-warning" id="modificar" name="modificar" value="Modificar">
-                <input type="submit" class="btn btn-danger" id="eliminar" name="eliminar" value="Eliminar">
-            </div>
-
-
-        </div>
-
-
-    </form>
-
-
-
-
-
-
+<div class="mt-3 ms-2 me-2">
+    <table class="table table-hover table-striped table-light sortable">
+        <thead class="thead-dark">
+            <tr>
+                <th>ID</th>
+                <th>Usuario</th>
+                <th>Rut</th>
+                <th>Tipo de usuario</th>
+                <th>Correo</th>
+                <th>Titulo</th>
+                <th>Fecha Prestamo</th>
+                <th>Fecha Devolucion</th>
+                <th>Estado</th>
+                <?php if (!isset($_POST['multas'])) {
+                    echo '<th>Renovaciones</th>';
+                } ?>
+                <?php if (isset($_POST['multas'])) {
+                    echo '<th>Multa</th>';
+                } ?>
+            </tr>
+        </thead>
+        <tbody id="tabla-prestamos">
+            <?php echo $prestamos ?>
+        </tbody>
+    </table>
 </div>
-
-
-
 
 
 

@@ -21,7 +21,7 @@
 
             </li>
             <li>
-                <a href="prestamos.php" class="nav-link text-white">
+                <a href="mis_prestamos.php" class="nav-link text-white">
                     <i class="fa-solid fa-receipt"></i> Mis Prestamos
                 </a>
             </li>
@@ -35,7 +35,7 @@
 
             </a>
             <ul class="dropdown-menu dropdown-menu-dark text-small shadow" aria-labelledby="dropdownUser1">
-                <li><a class="dropdown-item" href="#">Perfil</a></li>
+
                 <li>
                     <hr class="dropdown-divider">
                 </li>

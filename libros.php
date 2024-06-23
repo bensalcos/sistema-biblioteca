@@ -7,7 +7,6 @@ if ($_SESSION['tipo_usuario'] == 'Administrativo') {
 } else {
     header('location: index.html');
 }
-var_dump($_POST);
 
 $libros = '';
 $query_libros = "SELECT id_libro,titulo,autor,editorial,fecha_publicacion,stock FROM libros;";
@@ -15,7 +14,7 @@ $lista_ejemplares = '';
 
 
 
-if (isset($_POST['id']) && !isset($_POST['id_ejemplar'])) {
+if (isset($_POST['id']) && !isset($_POST['id_ejemplar']) && !isset($_POST['agregar']) && !isset($_POST['guardar_libro'])) {
 
     $query_libro = "SELECT id_libro as 'id',titulo as 'Titulo', 
                  autor as 'Autor', 
@@ -52,8 +51,8 @@ if (isset($_POST['id_ejemplar'])) {
     $id_libro = $fila['id_libro'];
     $titulo_ejemplar = mb_convert_encoding($fila['titulo'], "UTF-8", "ISO-8859-1");
     $codigo = mb_convert_encoding($fila['codigo_ejemplar'], "UTF-8", "ISO-8859-1");
-    $estado = mb_convert_encoding($fila['estado'], "UTF-8", "ISO-8859-1");
-    $condicion = mb_convert_encoding($fila['condicion'], "UTF-8", "ISO-8859-1");
+    $estado = ucfirst(mb_convert_encoding($fila['estado'], "UTF-8", "ISO-8859-1"));
+    $condicion = ucfirst(mb_convert_encoding($fila['condicion'], "UTF-8", "ISO-8859-1"));
 } else {
     $id_ejemplar = '';
     $id_libro = '';
@@ -70,13 +69,14 @@ if (isset($_POST['ejemplares'])) {
     $ejemplares = '';
     while ($fila = mysqli_fetch_array($resultado)) {
         $ejemplares .= "<tr class='item'>";
-        $ejemplares .= "<td>" . $fila['titulo'] . "</td>";
-        $ejemplares .= "<td>" . $fila['codigo_ejemplar'] . "</td>";
-        $ejemplares .= "<td>" . $fila['estado'] . "</td>";
-        $ejemplares .= "<td>" . $fila['condicion'] . "</td>";
+        $ejemplares .= "<td>" . $fila['id_ejemplar'] . "</td>";
+        $ejemplares .= "<td>" . ucfirst($fila['titulo']) . "</td>";
+        $ejemplares .= "<td>" . ucfirst($fila['codigo_ejemplar']) . "</td>";
+        $ejemplares .= "<td>" . ucfirst($fila['estado']) . "</td>";
+        $ejemplares .= "<td>" . ucfirst($fila['condicion']) . "</td>";
         $ejemplares .= "<td><form method='POST' action='libros.php'>
                     <input type='hidden' name='id_ejemplar' value='" . $fila['id_ejemplar'] . "'>
-                    <button type='submit' class='btn btn-secondary'>ver</button>
+                    <button type='submit' class='btn btn-secondary'>Detalles</button>
                 </form></td>";
         $ejemplares .= "</tr>";
     }
@@ -87,11 +87,12 @@ if (isset($_POST['ejemplares'])) {
 
 
 
-if (isset($_POST['listar'])) {
+if (isset($_POST['listar']) || $_POST == Array ()) {
     if ($resultado = mysqli_query($connect, $query_libros)) {
         while ($fila = mysqli_fetch_array($resultado)) {
 
             $libros .= "<tr class='item'>";
+            $libros .= "<td>" . $fila['id_libro'] . "</td>";
             $libros .= "<td>" . $fila['titulo'] . "</td>";
             $libros .= "<td>" . $fila['autor'] . "</td>";
             $libros .= "<td>" . $fila['editorial'] . "</td>";
@@ -99,7 +100,7 @@ if (isset($_POST['listar'])) {
             $libros .= "<td>" . $fila['stock'] . "</td>";
             $libros .= "<td><form method='POST' action='libros.php'>
                     <input type='hidden' name='id' value='" . $fila['id_libro'] . "'>
-                    <button type='submit' class='btn btn-secondary'>ver</button>
+                    <button type='submit' class='btn btn-secondary'>Detalles</button>
                 </form></td>";
             $libros .= "</tr>";
         }
@@ -117,18 +118,18 @@ if (isset($_POST['listar_ejemplares']) || isset($_POST['listar_ejemplares_elimin
     if ($resultado = mysqli_query($connect, $query_ejemplares)) {
         while ($fila = mysqli_fetch_array($resultado)) {
 
-  
-                $lista_ejemplares .= "<tr class='item'>";
-                $lista_ejemplares .= "<td>" . $fila['titulo'] . "</td>";
-                $lista_ejemplares .= "<td>" . $fila['codigo_ejemplar'] . "</td>";
-                $lista_ejemplares .= "<td>" . ucfirst($fila['estado']) . "</td>";
-                $lista_ejemplares .= "<td>" . ucfirst($fila['condicion']) . "</td>";
-                $lista_ejemplares .= "<td><form method='POST' action='libros.php'>
-                    <input type='hidden' name='id_ejemplar' value='" . $fila['id_ejemplar'] . "'>
-                    <button type='submit' class='btn btn-secondary'>ver</button>
-                </form></td>";
-                $lista_ejemplares .= "</tr>";
 
+            $lista_ejemplares .= "<tr class='item'>";
+            $lista_ejemplares .= "<td>" . $fila['id_ejemplar'] . "</td>";
+            $lista_ejemplares .= "<td>" . $fila['titulo'] . "</td>";
+            $lista_ejemplares .= "<td>" . $fila['codigo_ejemplar'] . "</td>";
+            $lista_ejemplares .= "<td>" . ucfirst($fila['estado']) . "</td>";
+            $lista_ejemplares .= "<td>" . ucfirst($fila['condicion']) . "</td>";
+            $lista_ejemplares .= "<td><form method='POST' action='libros.php'>
+                    <input type='hidden' name='id_ejemplar' value='" . $fila['id_ejemplar'] . "'>
+                    <button type='submit' class='btn btn-secondary'>Detalles</button>
+                </form></td>";
+            $lista_ejemplares .= "</tr>";
         }
     } else {
         echo "Error: " . $query_ejemplares . "<br>" . mysqli_error($connect);
@@ -166,7 +167,7 @@ if (isset($_POST['guardar_ejemplar'])) {
     }
 
     if (mysqli_query($connect, $query)) {
-        echo "Registro guardado";
+        echo '<script>agregarAlerta("alert-success", "Libro guardado con exito")</script>';
     } else {
         echo "Error: " . $query . "<br>" . mysqli_error($connect);
     }
@@ -188,29 +189,38 @@ if (isset($_POST['guardar_libro'])) {
     }
 
     if (mysqli_query($connect, $query)) {
-        echo "Registro guardado";
+        echo '<script>agregarAlerta("alert-success", "Libro guardado con éxito.")</script>';
     } else {
-        echo "Error: " . $query . "<br>" . mysqli_error($connect);
+        echo '<script>agregarAlerta("alert-danger", "Error, no se pudo guardar el libro.")</script>';
     }
 }
 
 
-
 if (isset($_POST['eliminar'])) {
     $id = $_POST['id'];
-    $query = "DELETE FROM libros WHERE id=$id;";
-    if (mysqli_query($connect, $query)) {
-        echo "Registro eliminado";
+    $query = "DELETE FROM libros WHERE id_libro=$id;";
+
+    $query_contar_ejemplares = "SELECT COUNT(*) as cantidad FROM ejemplares WHERE id_libro = $id;";
+    $resultado = mysqli_query($connect, $query_contar_ejemplares);
+    $fila = mysqli_fetch_array($resultado);
+    if ($fila['cantidad'] > 0) {
+        echo '<script>agregarAlerta("alert-danger", "Error, no se puede eliminar el libro porque tiene ejemplares asociados.")</script>';
     } else {
-        echo "Error: " . $query . "<br>" . mysqli_error($connect);
+
+        if (mysqli_query($connect, $query)) {
+            echo '<script>agregarAlerta("alert-success", "Libro Eliminado con éxito.")</script>';
+        } else {
+            echo '<script>agregarAlerta("alert-danger", "Error, no se pudo eliminar el libro.")</script>';
+        }
     }
 }
 function esta_en_prestamo($id_ejemplar)
 {
     include('conexion.php');
-    $query = "SELECT id_prestamo FROM prestamos WHERE id_ejemplar=$id_ejemplar AND estado='activo';";
+    $query = "SELECT id_prestamo,estado FROM prestamos WHERE id_ejemplar=$id_ejemplar;";
     $resultado = mysqli_query($connect, $query);
-    if (mysqli_num_rows($resultado) > 0) {
+    $fila = mysqli_fetch_array($resultado);
+    if (strtolower($fila['estado']) == 'en prestamo'){
         return true;
     } else {
         return false;
@@ -222,15 +232,15 @@ function esta_en_prestamo($id_ejemplar)
 if (isset($_POST['eliminar_ejemplar'])) {
     $id_ejemplar = $_POST['id_ejemplar'];
 
-    if (esta_en_prestamo($id_ejemplar)) {
-        echo "No se puede eliminar el ejemplar porque esta en prestamo";
-        return;
+    if (!esta_en_prestamo($id_ejemplar)) {
+        '<script>agregarAlerta("alert-success", "No se puede eliminar el ejemplar porque esta en prestamo")</script>';
+        
     } else {
         $query = "UPDATE ejemplares SET estado='eliminado' WHERE id_ejemplar=$id_ejemplar;";
         if (mysqli_query($connect, $query)) {
-            echo "Registro eliminado";
+            echo '<script>agregarAlerta("alert-success", "Ejemplar eliminado con éxito.")</script>';
         } else {
-            echo "Error: " . $query . "<br>" . mysqli_error($connect);
+            echo '<script>agregarAlerta("alert-danger", "Error, no se pudo eliminar el ejemplar.")</script>';
         }
     }
 }
@@ -238,12 +248,6 @@ if (isset($_POST['eliminar_ejemplar'])) {
 
 
 if (isset($_POST['limpiar'])) {
-    $id = "";
-    $titulo = "";
-    $autor = "";
-    $editorial = "";
-    $fecha = "";
-    $stock = "";
     $id = "";
     $titulo = "";
     $autor = "";
@@ -262,7 +266,6 @@ if (isset($_POST['limpiar'])) {
             {
                 var texto = $(this).val(); //se recupera el valor del input de texto y se guarda en la variable texto
                 var cadenaBuscar = 'palabra=' + texto; //se guarda en una variable nueva para posteriormente pasarla a buscarCategoria.php
-                console.log(cadenaBuscar);
                 if (texto == '') //si no tiene ningun valor el input de texto no realiza ninguna accion
                 {
                     $("#mostrar").empty();
@@ -289,12 +292,12 @@ if (isset($_POST['limpiar'])) {
 
 <form action="" method="post" enctype="multipart/form-data" style="margin:auto; " ;>
     <div class="d-grid d-md-flex mt-2">
-        <input type="submit" class="btn btn-secondary" id="listar_ejemplares" name="listar_ejemplares" value="Listar Ejemplares">
-        
-        <?php (isset($_POST['listar_ejemplares']) || isset($_POST['listar_ejemplares_eliminados']) )? $btn = '<button type="submit" class="btn btn-secondary" id="listar_ejemplares_eliminados" name="listar_ejemplares_eliminados" value="Listar Ejemplares Eliminados">Listar Eliminados</button>': $btn = '';?>
+        <input type="submit" class="btn btn-primary" id="listar_ejemplares" name="listar_ejemplares" value="Listar Ejemplares">
+
+        <?php (isset($_POST['listar_ejemplares']) || isset($_POST['listar_ejemplares_eliminados'])) ? $btn = '<button type="submit" class="btn btn-secondary" id="listar_ejemplares_eliminados" name="listar_ejemplares_eliminados" value="Listar Ejemplares Eliminados">Listar Eliminados</button>' : $btn = ''; ?>
         <?php echo $btn; ?>
-        <button type="submit" class="btn btn-success" id="listar" name="listar" value="Listar Libros">Listar Libros</button>
-      <button type="submit" class="btn btn-success" id="agregar_libro" name="agregar_libro" value="Agregar Libro">Agregar Libro</button>
+        <button type="submit" class="btn btn-primary" id="listar" name="listar" value="Listar Libros">Listar Libros</button>
+        <button type="submit" class="btn btn-success" id="agregar_libro" name="agregar_libro" value="Agregar Libro">Agregar Libro</button>
 
 
 
@@ -302,19 +305,10 @@ if (isset($_POST['limpiar'])) {
 </form>
 
 
-
 <div class="mt-4">
-
-
     <input type="text" class="input-buscar-libros form-control me-2" placeholder="Buscar Libros" id="caja_busqueda">
     <div class="card mt-3" id="mostrar">
     </div>
-
-
-
-
-
-
 </div>
 
 
@@ -360,14 +354,14 @@ if (isset($_POST['agregar_libro']) || isset($_POST['id'])) {
                     </div>
                     <div class="col-4">
                         <div class="mb-3">
-                            <label for="fecha-publicacion" class="form-label">Fecha de Publicación</label>
+                            <label for="fecha-publicacion" class="form-label">Año de Publicación</label>
                             <input type="text" class="form-control" id="fecha_publicacion" name="fecha-publicacion" value="$fecha">
                         </div>
                     </div>
                     <div class="col-4">
                         <div class="mb-3">
                             <label for="stock" class="form-label">Stock</label>
-                            <input type="number" class="form-control" id="stock" name="stock" value="$stock">
+                            <input type="number" class="form-control" id="stock" min='0' name="stock" value="$stock">
                         </div>
                     </div>
                 </div>
@@ -381,7 +375,7 @@ if (isset($_POST['agregar_libro']) || isset($_POST['id'])) {
                 <button type="submit" class="btn btn-primary" name="guardar_libro">Guardar Libro</button>
                 <button type="submit" class="btn btn-danger" name="eliminar">Eliminar</button>
             </div>
-        </div>
+        </div> 
     </form>
     </div>
     EOT;
@@ -394,11 +388,12 @@ if (isset($_POST['listar_ejemplares']) || isset($_POST['listar_ejemplares_elimin
     <table class="table table-hover table-striped table-light sortable">
         <thead class="thead-dark">
             <tr>
+                <th>ID</th>
                 <th>Título</th>
                 <th>Codigo de Ejemplar</th>
                 <th>Estado </th>
                 <th>Condicion </th>
-                <th>Acciones</th>
+                <th class="sorttable_nosort">Acciones</th>
             </tr>
         </thead>
         <tbody id="tabla-libros">
@@ -413,18 +408,19 @@ if (isset($_POST['listar_ejemplares']) || isset($_POST['listar_ejemplares_elimin
 
 
 
-if (isset($_POST['listar'])) {
+if (isset($_POST['listar']) || $_POST == Array ()) {
     echo <<<EOT
     <div class="mt-3 ms-2 me-2" >
     <table class="table table-hover table-striped table-light sortable">
         <thead class="thead-dark">
             <tr>
+                <th>ID</th>
                 <th>Título</th>
                 <th>Autor</th>
                 <th>Editorial</th>
                 <th>Año de Publicación</th>
                 <th>Stock </th>
-                <th>Acciones</th>
+                <th class="sorttable_nosort">Acciones</th>
             </tr>
         </thead>
         <tbody id="tabla-libros">
@@ -445,11 +441,12 @@ if (isset($_POST['ejemplares'])) {
     <table class="table table-hover table-striped table-light sortable">
         <thead class="thead-dark">
             <tr>
+                <th>ID</th>
                 <th>Titulo</th>
                 <th>Código de Ejemplar</th>
                 <th>Estado</th>
                 <th>Condición</th>
-                <th>Acciones</th>
+                <th class="sorttable_nosort">Acciones</th>
             </tr>
         </thead>
         <tbody id="tabla-ejemplares">
@@ -532,11 +529,11 @@ if (isset($_POST['id_ejemplar']) || isset($_POST['agregar_ejemplar'])) {
 
 
     ($estado) == 'no disponible' ? $sel = 'selected' : $sel = "";
-    echo '<option value="no-disponible" ' . $sel . '>No Disponible</option>';
+    echo '<option value="no disponible" ' . $sel . '>No Disponible</option>';
     ($estado) == 'disponible' ? $sel = 'selected' : $sel = "";
     echo '<option value="disponible" ' . $sel . '>Disponible</option>';
     ($estado) == 'en prestamo' ? $sel = 'selected' : $sel = "";
-    echo '<option value="en-prestamo" ' . $sel . '>En Prestamo</option>';
+    echo '<option value="en prestamo" ' . $sel . '>En Prestamo</option>';
     ($estado) == 'eliminado' ? $sel = 'selected' : $sel = "";
     echo '<option value="eliminado" ' . $sel . '>Eliminado</option>';
     echo <<<EOT

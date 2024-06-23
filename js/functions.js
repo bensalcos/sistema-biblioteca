@@ -173,13 +173,16 @@ function GenerarRut() {
 }
 
 
-function dias_prestamo(tipo_usuario) {
+function agregarAlerta(tipo, mensaje) {
+    var alerta = document.createElement("div");
+    alerta.className = 'alert ' + tipo;
+    alerta.innerText = mensaje;
 
-    dias = document.getElementById("fecha_devolucion");
-    dias.addEventListener("onChange", function (e) {
-        console.log(dias.value());
-    });
+    var contenedor = document.querySelector(".alerts");
+    contenedor.appendChild(alerta);
+  
+    setTimeout(function() {
+      alerta.remove();
+    }, 3000);
+  }
 
-
-    return fecha;
-}

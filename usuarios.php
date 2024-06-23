@@ -3,9 +3,11 @@ session_start();
 include("conexion.php");
 include("templates/header.php");
 
-var_dump($_POST);
-if (isset($_GET['id'])) {
-    $query = "SELECT * FROM usuarios WHERE id_usuario = " . $_GET['id'];
+if (empty($_SESSION)) {
+    header('location: index.html');
+}
+if (isset($_POST['id'])) {
+    $query = "SELECT * FROM usuarios WHERE id_usuario = " . $_POST['id'];
     $resultado = mysqli_query($connect, $query);
     $fila = mysqli_fetch_array($resultado);
 
@@ -35,10 +37,15 @@ if (isset($_POST['crear'])) {
     $correo = $_POST['correo'];
     $rut = $_POST['rut'];
     $tipo_usuario = $_POST['tipo_usuario'];
-    $foto = $_FILES['foto']['name'];
-    $ruta = $_FILES['foto']['tmp_name'];
-    $destino = "media/img/" . $foto;
-    copy($ruta, $destino);
+
+    if (isset($_FILES['name'])) {
+        $foto = $_FILES['foto']['name'];
+        $ruta = $_FILES['foto']['tmp_name'];
+        $destino = "media/img/" . $foto;
+        copy($ruta, $destino);
+    } else {
+        $foto = "usuario.png";
+    }
     $clave1 = $_POST['clave'];
     $clave2 = $_POST['clave2'];
 
@@ -48,12 +55,12 @@ if (isset($_POST['crear'])) {
         $query = "INSERT INTO usuarios (nombre,apellido,rut,tipo_usuario,correo,clave,foto) VALUES ('$nombre','$apellido','$rut','$tipo_usuario','$correo','$clave','$foto')";
         $resultado = mysqli_query($connect, $query);
         if ($resultado) {
-            echo "<script>alert('Usuario creado correctamente');</script>";
+            echo '<script>agregarAlerta("alert-success", "Usuario creado correctamente")</script>';
         } else {
-            echo "<script>alert('Error al crear el usuario');</script>";
+            echo '<script>agregarAlerta("alert-danger", "Error al crear usuario")</script>';
         }
     } else {
-        $msg = "<div class='alert alert-danger'>Las Contraseñas no son iguales!</div>";
+        echo '<script>agregarAlerta("alert-warning", "Las contraseñas no coinciden")</script>';
     }
 }
 
@@ -75,12 +82,12 @@ if (isset($_POST['modificar'])) {
         $query = "UPDATE usuarios SET nombre='$nombre',apellido='$apellido',rut='$rut',tipo_usuario='$tipo_usuario',correo='$correo',clave='$clave',foto='$foto' WHERE id_usuario=" . $_POST['id'];
         $resultado = mysqli_query($connect, $query);
         if ($resultado) {
-            echo "<script>alert('Usuario modificado correctamente');</script>";
+            echo '<script>agregarAlerta("alert-success", "Usuario modificado correctamente")</script>';
         } else {
-            echo "<script>alert('Error al modificar el usuario');</script>";
+            echo '<script>agregarAlerta("alert-danger", "Error al modificar el usuario")</script>';
         }
     } else {
-        $msg = "<div class='alert alert-danger'>Las Contraseñas no son iguales!</div>";
+        echo '<script>agregarAlerta("alert-warning", "Las contraseñas no coinciden")</script>';
     }
 }
 
@@ -89,10 +96,9 @@ if (isset($_POST['eliminar'])) {
     $query = "DELETE FROM usuarios WHERE id_usuario=" . $_POST['id'];
     $resultado = mysqli_query($connect, $query);
     if ($resultado) {
-        echo "<script>alert('Usuario eliminado correctamente');</script>";
-        header("location: usuarios.php");
+        echo '<script>agregarAlerta("alert-success", "Usuario eliminado correctamente")</script>';
     } else {
-        echo "<script>alert('Error al eliminar el usuario');</script>";
+        echo '<script>agregarAlerta("alert-danger", "Error, no se pudo eliminar al usuario")</script>';
     }
 }
 
@@ -137,17 +143,17 @@ if (isset($_POST['subir_foto'])) {
             // Trabajamos en actualizar la foto en la BD
             $query = "UPDATE usuarios SET foto = '" . $nombreFoto . "' WHERE id = " . $id . ";";
             if (mysqli_query($connect, $query)) {
-                $msg = "<div class='alert alert-success'>Fotografía actualizada correctamente!!!</div>";
+                echo '<script>agregarAlerta("alert-success", "Fotografia actualizada exitosamente")</script>';
             } else {
-                $msg = "<div class='alert alert-danger'>No se ha podido actualizar la fotografia del usuario!!!</div>";
+                echo '<script>agregarAlerta("alert-danger", "No se ha podido actualizar la fotografia del usuario")</script>';
             }
         } else {
             //Si el formato no es permitido
-            $msg = '<div class="alert alert-danger"><b>El formato del archivo no esta permitido.</b></div>';
+            echo '<script>agregarAlerta("alert-danger", "Formato de foto no permitido")</script>';
         }
     } else {
         //Si el archivo es de tamaño mayor al permitido
-        $msg = '<div class="alert alert-danger"><b>El archivo tiene un tamaño mayor al permitido.</b></div>';
+        echo '<script>agregarAlerta("alert-danger", "El archivo tiene un tamaño mayor al permitido")</script>';
     }
 }
 
@@ -166,13 +172,14 @@ if (isset($_POST['listar'])) {
 
                 $usuarios .= "<tr class='item'>";
                 $usuarios .= "<td>" . $fila['id_usuario'] . "</td>";
-                $usuarios .= "<td>" . $fila['nombre'] . "</td>";
-                $usuarios .= "<td>" . $fila['apellido'] . "</td>";
+                $usuarios .= "<td>" . ucfirst($fila['nombre']) . "</td>";
+                $usuarios .= "<td>" . ucfirst($fila['apellido']) . "</td>";
                 $usuarios .= "<td>" . $fila['rut'] . "</td>";
-                $usuarios .= "<td>" . $fila['tipo_usuario'] . "</td>";
+                $usuarios .= "<td>" . ucfirst($fila['tipo_usuario']) . "</td>";
                 $usuarios .= "<td>" . $fila['correo'] . "</td>";
                 $usuarios .= "<td><img src='media/img/" . $fila['foto'] . "' width='50' height='50'></td>";
                 $usuarios .= "<td><a href='usuarios.php?id=" . $fila['id_usuario'] . "'><button type='button' class='btn btn-primary'>Editar</button></a></td>";
+                
                 $usuarios .= "</tr>";
             }
         } else {
@@ -236,9 +243,7 @@ if ($_SESSION['tipo_usuario'] == 'Administrativo') {
 
 
 <div class="mt-4">
-    <input type="text" class="input-buscar-usuarios form-control me-2" placeholder="Buscar Usuario" id="caja_busqueda">
-
-
+    <input type="text" class="input-buscar-usuarios form-control me-2" placeholder="Buscar Usuario por RUT" id="caja_busqueda">
     <div class="card" id="mostrar">
 
 
@@ -275,13 +280,13 @@ if ($_SESSION['tipo_usuario'] == 'Administrativo') {
                     <div class="col-5">
                         <div class="mb-3">
                             <label for="nombre" class="form-label">Nombre:</label>
-                            <input type="text" class="form-control" id="nombre" name="nombre" value="<?php echo $nombre; ?>">
+                            <input type="text" class="form-control" id="nombre" name="nombre" value="<?php echo ucfirst($nombre); ?>">
                         </div>
                     </div>
                     <div class="col-5">
                         <div class="mb-3">
                             <label for="apellido" class="form-label">Apellido:</label>
-                            <input type="text" class="form-control" id="apellido" name="apellido" value="<?php echo $apellido; ?>">
+                            <input type="text" class="form-control" id="apellido" name="apellido" value="<?php echo ucfirst($apellido); ?>">
                         </div>
                     </div>
 
@@ -338,13 +343,6 @@ if ($_SESSION['tipo_usuario'] == 'Administrativo') {
 
                 </div>
 
-
-
-
-
-
-
-
             </div>
 
         </div>
@@ -384,8 +382,8 @@ if (isset($_POST['listar'])) {
                 <th>Rut</th>
                 <th>Tipo de usuario</th>
                 <th>Correo</th>
-                <th>Foto</th>
-                <th>Acciones</th>
+                <th class="sorttable_nosort">Foto</th>
+                <th class="sorttable_nosort">Acciones</th>
             </tr>
         </thead>
         <tbody id="tabla-usuarios">

@@ -9,6 +9,12 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.5/font/bootstrap-icons.css">
     <link rel="stylesheet" href="css/styles.css">
     <script src="js/jquery-3.7.0.min"></script>
+    <script src="js/functions.js"></script>
+
 </head>
 
 <body>
+    <div class="alerts">
+
+
+    </div>

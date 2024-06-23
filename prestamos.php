@@ -3,29 +3,11 @@ session_start();
 include("conexion.php");
 include("templates/header.php");
 
-// CODIGO DE EJEMPLAR
-//$s = $fila['Autor'];
-//$s = str_replace(' ', '', $s);
-//$s = str_replace('.', '', $s);
-//$s = strtoupper($s);
-//$s = substr($s, 0, 2);
-//$s2 = $fila['Titulo'];
-//$s2 = str_replace(' ', '', $s2);
-//$s2 = str_replace('.', '', $s2);
-//$s2 = strtoupper($s2);
-//$s2 = substr($s2, 0, 2);
-//$s = $s . '-' . $s2 . $fila['id'] . '-';
-//$codigo = $s;
-//
-
-
-
-
 
 
 $query_ejemplares = "SELECT id_ejemplar, id_libro, codigo_ejemplar, estado, condicion FROM ejemplares GROUP BY codigo_ejemplar;";
 
-if (isset($_POST['listar'])) {
+if (isset($_POST['listar']) || $_POST == Array()) {
     $query_libros = "SELECT id_libro,titulo,autor,editorial,fecha_publicacion,stock FROM libros;";
     $libros = '';
     if ($resultado = mysqli_query($connect, $query_libros)) {
@@ -39,7 +21,7 @@ if (isset($_POST['listar'])) {
             $libros .= "<td>" . $fila['stock'] . "</td>";
             $libros .= "<td><form method='POST' action='prestamos.php'>
                     <input type='hidden' name='id_libro' value='" . $fila['id_libro'] . "'>
-                    <button type='submit' class='btn btn-secondary'>ver</button>
+                    <button type='submit' class='btn btn-secondary'>Detalles</button>
                 </form></td>";
             $libros .= "</tr>";
         }
@@ -106,11 +88,14 @@ if (isset($_POST['ejemplares'])) {
     $resultado = mysqli_query($connect, $query_ejemplares);
     $ejemplares = '';
     while ($fila = mysqli_fetch_array($resultado)) {
+        if (strtolower($fila['estado']) == 'eliminado') {
+            continue;
+        }
         $ejemplares .= "<tr class='item'>";
-        $ejemplares .= "<td>" . $fila['titulo'] . "</td>";
+        $ejemplares .= "<td>" . ucfirst($fila['titulo']) . "</td>";
         $ejemplares .= "<td>" . $fila['codigo_ejemplar'] . "</td>";
-        $ejemplares .= "<td>" . $fila['estado'] . "</td>";
-        $ejemplares .= "<td>" . $fila['condicion'] . "</td>";
+        $ejemplares .= "<td>" . ucfirst($fila['estado']) . "</td>";
+        $ejemplares .= "<td>" . ucfirst($fila['condicion']) . "</td>";
         $ejemplares .= "<td><form method='POST' action='prestamos.php'>
                     <input type='hidden' name='id_ejemplar' value='" . $fila['id_ejemplar'] . "'>
                     <button type='submit' class='btn btn-secondary'>Detalles</button>
@@ -131,32 +116,69 @@ function generarCodigo($rut, $codigo_ejemplar, $fecha_prestamo)
     return $s;
 }
 
+
 function cantidadPrestamos($id_usuario)
 {
     include('conexion.php');
-    $query = "SELECT COUNT(*) as cantidad FROM prestamos WHERE id_usuario = $id_usuario and estado = 'en prestamo';";
+    $query = "SELECT COUNT(*) as cantidad FROM prestamos WHERE id_usuario = $id_usuario and estado = 'al dia';";
     $resultado = mysqli_query($connect, $query);
     $fila = mysqli_fetch_array($resultado);
     return $fila['cantidad'];
 }
-function es_prestamo_unico($id_usuario, $id_ejemplar)
+function esta_al_dia($id_usuario)
 {
     include('conexion.php');
-    $query = "SELECT COUNT(*) as cantidad FROM prestamos WHERE id_usuario = $id_usuario and estado = 'en prestamo' and id_ejemplar=$id_ejemplar;";
+    actualizar_prestamo($connect);
+    $query = "SELECT COUNT(*) as atrasos FROM prestamos WHERE id_usuario = $id_usuario and estado = 'atrasado';";
     $resultado = mysqli_query($connect, $query);
     $fila = mysqli_fetch_array($resultado);
-    return $fila['cantidad'];
-    if ($fila['cantidad'] > 0) {
-        return false;
+    return $fila['atrasos'];
+}
+
+
+
+function es_prestamo_unico($id_usuario, $id_ejemplar,$codigo_prestamo)
+{
+    include('conexion.php');
+    $query = "SELECT id_prestamo,id_usuario, id_ejemplar,codigo_prestamo,estado FROM prestamos WHERE id_usuario = $id_usuario and estado <> 'entregado';";
+    $resultado = mysqli_query($connect, $query);
+    while ($fila = mysqli_fetch_array($resultado)) {
+        $codigo_pres = explode('-', $fila['codigo_prestamo']);
+        $codigo_libro = $codigo_pres[2].'-'.$codigo_pres[3];
+        $codigo_prestamo2 = explode('-', $codigo_prestamo);
+        $codigo_libro2 = $codigo_prestamo2[2].'-'.$codigo_prestamo2[3];
+
+        if ($codigo_libro == $codigo_libro2) {
+            echo '<script>agregarAlerta("alert-danger", "Ya tiene en prestamo un ejemplar de este libro")</script>';
+            return false;
+        }
+    }
+    return true; 
+}
+function actualizar_prestamo($connect)
+{
+    $fechaActual = date('Y-m-d');
+
+    // Verificar y actualizar los préstamos que están atrasados
+    $sql = "UPDATE prestamos 
+        SET estado = 'atrasado' 
+        WHERE fecha_devolucion < '$fechaActual' 
+        AND estado != 'atrasado'";
+
+    if (mysqli_query($connect, $sql)) {
+        $c = 0;
     } else {
-        return true;
+        $c = 0;
     }
 }
 
 
 
-if (isset($_POST['solicitar_prestamo'])) {
 
+
+
+if (isset($_POST['solicitar_prestamo'])) {
+    actualizar_prestamo($connect);
     $codigo_ejemplar = $_POST['codigo'];
     $id_usuario = $_SESSION['id_usuario'];
     $tipo = strtolower($_SESSION['tipo_usuario']);
@@ -164,43 +186,49 @@ if (isset($_POST['solicitar_prestamo'])) {
     $estado = $_POST['estado'];
     $cantidad = cantidadPrestamos($id_usuario);
     $fecha_inicio_prestamo = $_POST['fecha_inicio_prestamo'];
-    $fecha_inicio_prestamo == ''? $fecha_inicio_prestamo=date('Y-m-d') : $fecha_inicio_prestamo;
+    $fecha_inicio_prestamo == '' ? $fecha_inicio_prestamo = date('Y-m-d') : $fecha_inicio_prestamo;
     $dias_prestamo = $_POST['dias_prestamo'];
     $codigo_prestamo = generarCodigo(explode('-', $_SESSION['rut'])[0], $codigo_ejemplar, $fecha_inicio_prestamo);
-    echo es_prestamo_unico($id_usuario, $id_ejemplar);
+    
+        
 
-    var_dump($_POST);
-    if (!strtolower($estado) == 'disponible') {
-        echo "El ejemplar no se encuentra disponible";
+    if (strtolower($estado) != 'disponible') {
+        echo '<script>agregarAlerta("alert-danger", "El ejemplar no esta disponible")</script>';
     } else {
-        echo "prestamo unico" . es_prestamo_unico($id_usuario, $id_ejemplar) . "<br>";
-        if (es_prestamo_unico($id_usuario, $id_ejemplar) < 1) {
+        if (es_prestamo_unico($id_usuario, $id_ejemplar,$codigo_prestamo)) {
             $estado = 'en prestamo';
 
+            if (esta_al_dia($id_usuario) > 0) {
+                echo '<script>agregarAlerta("alert-danger", "Tiene prestamos atrasados")</script>';
+
+            } else{
+
             if (strtolower($_SESSION['tipo_usuario']) == ('docente')) {
-
-
                 $fecha_devolucion = date('Y-m-d', strtotime($fecha_inicio_prestamo  . ' + ' . $dias_prestamo . ' days'));
                 $query_prestamo = "INSERT INTO prestamos (id_usuario, id_ejemplar, codigo_prestamo,fecha_prestamo, fecha_devolucion, estado) VALUES ($id_usuario, $id_ejemplar,'$codigo_prestamo', '$fecha_inicio_prestamo ', '$fecha_devolucion', 'al dia');";
-                if (mysqli_query($connect, $query_prestamo)) {
-                    echo "Registro guardado";
+                $query_ejemplar = "UPDATE ejemplares SET estado = 'en prestamo' WHERE id_ejemplar = $id_ejemplar;";
+                if (mysqli_query($connect, $query_ejemplar) && mysqli_query($connect, $query_prestamo)) {
+                    echo '<script>agregarAlerta("alert-success", "Prestamo exitoso")</script>';
                 } else {
                     echo "Error: " . $query_prestamo . "<br>" . mysqli_error($connect);
                 }
             } else {
+
                 $fecha_devolucion = date('Y-m-d', strtotime($fecha_inicio_prestamo  . ' + ' . $dias_prestamo . ' days'));
                 if ($cantidad >= 4) {
-                    echo "No puede solicitar mas de 4 libros";
+                    echo '<script>agregarAlerta("alert-danger", "No puede solicitar mas prestamos")</script>';
                 } else {
                     $query_prestamo = "INSERT INTO prestamos (id_usuario, id_ejemplar, codigo_prestamo,fecha_prestamo, fecha_devolucion, estado) VALUES ($id_usuario, $id_ejemplar,'$codigo_prestamo', '$fecha_inicio_prestamo ', '$fecha_devolucion', 'al dia');";
-                    if (mysqli_query($connect, $query_prestamo)) {
-                        echo "Registro guardado";
+                    $query_ejemplar = "UPDATE ejemplares SET estado = 'en prestamo' WHERE id_ejemplar = $id_ejemplar;";
+                    if (mysqli_query($connect, $query_ejemplar) && mysqli_query($connect, $query_prestamo)) {
+                        echo '<script>agregarAlerta("alert-success", "Prestamo exitoso")</script>';
                     } else {
-                        echo "Error: " . $query_prestamo . "<br>" . mysqli_error($connect);
+                        echo '<script>agregarAlerta("alert-danger", "Error: ' . $query_ejemplar . '"<br>" '. mysqli_error($connect).')</script>';
                     }
                 }
             }
         }
+    }
     }
 }
 
@@ -216,8 +244,13 @@ if ($_SESSION['tipo_usuario'] == 'Administrativo') {
 }
 
 ?>
+<div class="alerts">
 
 
+
+
+
+</div>
 <script>
     $(document).ready(function() {
         $(".input-buscar-libros").keyup(function() //se crea la funcion keyup
@@ -260,21 +293,9 @@ if ($_SESSION['tipo_usuario'] == 'Administrativo') {
 
 
 <div class="mt-4">
-
-
     <input type="text" class="input-buscar-libros form-control me-2" placeholder="Buscar Libros" id="caja_busqueda">
-
-
-
     <div class="card mt-3" id="mostrar">
     </div>
-
-
-
-
-
-
-
 </div>
 
 
@@ -286,7 +307,7 @@ if ($_SESSION['tipo_usuario'] == 'Administrativo') {
 if (isset($_POST['id_libro'])) {
     echo <<<EOT
     <div class="mt-4 card">
-    <form class="mt-5" action="" method="post" enctype="multipart/form-data" style="margin:auto; " ;>
+    <form class="mt-5 me-4 ms-4" action="" method="post" enctype="multipart/form-data" style="margin:auto; " ;>
         <h3>Prestamos</h3>
         <div class="row">
             <div class="col-9">
@@ -353,7 +374,7 @@ EOT;
 
 
 
-if (isset($_POST['listar'])) {
+if (isset($_POST['listar']) || $_POST == Array()) {
     echo <<<EOT
     <div class="mt-3 ms-2 me-2" >
     <table class="table table-hover table-striped table-light sortable">
@@ -364,7 +385,7 @@ if (isset($_POST['listar'])) {
                 <th>Editorial</th>
                 <th>Año de Publicación</th>
                 <th>Stock </th>
-                <th>Acciones</th>
+                <th class="sorttable_nosort">Acciones</th>
             </tr>
         </thead>
         <tbody id="tabla-libros">
@@ -390,13 +411,14 @@ if (isset($_POST['ejemplares'])) {
                 <th>Código de Ejemplar</th>
                 <th>Estado</th>
                 <th>Condición</th>
-                <th>Acciones</th>
+                <th class="sorttable_nosort">Acciones</th>
             </tr>
         </thead>
         <tbody id="tabla-ejemplares">
             $ejemplares
         </tbody>
     </table>
+    </div>
 
 EOT;
 }
@@ -404,9 +426,17 @@ EOT;
 
 
 if (isset($_POST['id_ejemplar'])) {
+    $dias_prestamo = 7;
+    $minimo = 1;
 
-    (strtolower($_SESSION['tipo_usuario']) == 'docente') ? $dias_prestamo = 20 : $dias_prestamo = 7;
-    echo "Dias de prestamo: " . $dias_prestamo;
+    if (strtolower($_SESSION['tipo_usuario']) == 'docente'){
+        $dias_prestamo = 20;
+        $minimo = 7;
+    }else {
+        $dias_prestamo = 7;
+        $minimo = 0;
+    }
+
     $sel = '';
     echo <<<EOT
     <script>
@@ -420,7 +450,7 @@ if (isset($_POST['id_ejemplar'])) {
                 }
             });
             inputDiasPrestamo.setAttribute('max', $dias_prestamo);
-            inputDiasPrestamo.setAttribute('min', 0);
+            inputDiasPrestamo.setAttribute('min', $minimo);
         });
     </script>
     <div class="mt-4 card">
@@ -514,7 +544,7 @@ if (isset($_POST['id_ejemplar'])) {
             <button type="submit" class="btn btn-primary" name="solicitar_prestamo">Solicitar Prestamo</button>
         </div>
     </div>
-    </div>
+    
     </form>
     </div>
  EOT;

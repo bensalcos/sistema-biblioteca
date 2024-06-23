@@ -26,16 +26,6 @@
                 </a>
             </li>
             <li>
-                <a href="prestamos.php" class="nav-link text-white">
-                    <i class="fa-solid fa-receipt"></i> Prestamos
-                </a>
-            </li>
-            <li>
-                <a href="multas.php" class="nav-link text-white">
-                    <i class="fa-solid fa-file-invoice-dollar"></i> Multas
-                </a>
-            </li>
-            <li>
                 <a href="reportes.php" class="nav-link text-white">
                     <i class="fa-solid fa-file-invoice-dollar"></i> Reportes
                 </a>
@@ -60,7 +50,7 @@
 
             </a>
             <ul class="dropdown-menu dropdown-menu-dark text-small shadow" aria-labelledby="dropdownUser1">
-                <li><a class="dropdown-item" href="#">Perfil</a></li>
+
                 <li>
                     <hr class="dropdown-divider">
                 </li>
